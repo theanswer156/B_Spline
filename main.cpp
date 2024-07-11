@@ -3,19 +3,44 @@
 #include <QVBoxLayout>
 #include <QMainWindow>
 #include <QWidget>
-int main(int argc, char *argv[])
-{
-    QApplication a(argc, argv);
-    QMainWindow w;
-    //这里没有指定父类  后面用的时候要以引用的形式使用
-    QWidget *centralWidget = new QWidget(&w);
-    QVBoxLayout *layout = new QVBoxLayout(centralWidget);
+#include <QVector>
+#include <QRandomGenerator>
+#include <QtCharts/QChartView>
+#include <QTime>
+#include <QDebug>
+int main(int argc, char *argv[]) {
+    QApplication app(argc, argv);
+    QMainWindow mainWindow;
 
-    MyWindow *mywindow = new MyWindow();
-    mywindow->setFixedSize(1000,200);
-    layout->addWidget(mywindow);
-    w.setCentralWidget(centralWidget);
-    w.show();
+//    QWidget *centralWidget = new QWidget(&mainWindow);
+//    QVBoxLayout *layout = new QVBoxLayout(centralWidget);
 
-    return a.exec();
+    // 创建折线图小部件
+    LineChartWidget *chartWidget = new LineChartWidget(&mainWindow);
+//    chartWidget->setFixedSize(100,100);
+
+    // 假设这是你已有的数据
+    QList<QPointF> myData;
+
+//    QRandomGenerator randomgen;
+//    quint64 seed = QDateTime::currentMSecsSinceEpoch();
+//    randomgen.seed(seed);
+    qDebug()<<chartWidget->size();
+
+    for (int i = 0; i < 25; i+=1) {
+        // 这里应填入你的实际数据点
+
+        myData.append(QPointF(i, (static_cast<float>(qrand() / 100)))); // someFunction 应替换为你的数据生成逻辑
+    }
+
+
+    chartWidget->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Expanding);
+    // 设置数据到折线图小部件
+    chartWidget->drawPoint(myData);
+    chartWidget->setdesData(myData);
+
+//    layout->addWidget(chartWidget);
+    mainWindow.setCentralWidget(chartWidget);
+    mainWindow.show();
+    return app.exec();
 }
