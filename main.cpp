@@ -23,20 +23,20 @@ int main(int argc, char *argv[]) {
     QVBoxLayout *layout = new QVBoxLayout(centralWidget);
     layout->addWidget(chartWidget);
     // 假设这是你已有的数据
-    QList<QPointF> myData;
+//    QList<QPointF> myData;
 
 //    QRandomGenerator randomgen;
 //    quint64 seed = QDateTime::currentMSecsSinceEpoch();
 //    randomgen.seed(seed);
     qDebug()<<chartWidget->size();
-    QRandomGenerator randomgen;
-    quint32 seed = QRandomGenerator::global()->bounded(0,100);
-    randomgen.seed(seed);
-    for (int i = 0; i < 250; i+=10) {
-        // 这里应填入你的实际数据点
+//    QRandomGenerator randomgen;
+//    quint32 seed = QRandomGenerator::global()->bounded(0,100);
+//    randomgen.seed(seed);
+//    for (int i = 0; i < 250; i+=10) {
+//        // 这里应填入你的实际数据点
 
-        myData.append(QPointF(i, (static_cast<float>(randomgen.bounded(500))))); // someFunction 应替换为你的数据生成逻辑
-    }
+//        myData.append(QPointF(i, (static_cast<float>(randomgen.bounded(500))))); // someFunction 应替换为你的数据生成逻辑
+//    }
 
 
     chartWidget->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Expanding);
