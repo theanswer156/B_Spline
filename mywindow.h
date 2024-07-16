@@ -162,7 +162,11 @@ public:
         //!     那么后面的值也就会变  这样的话  用理查森外推法中心误差公式就
         //!     无法计算准确的数值了   所以前两个和后两个不能按照位置来
         //!     必须在计算后就改变   而不是按照坐标来
+<<<<<<< HEAD
         for(qreal t = 0;t<1.0000;t+=precis){
+=======
+        for(qreal t = 0;t<1.0000;++i,t+=precis){
+>>>>>>> 727c5dc023779986a850d2d57f32463e78832fd4
 //            QPointF left1 = desdata3.at(i-2);
 //            QPointF left2 = desdata3.at(i-1);
 //            QPointF right1 = desdata3.at(i+1);
@@ -190,9 +194,13 @@ public:
                 //!     这里的插值容易超过下一个点的坐标  这该怎么办
                 //!     还是说误差不能忽略
                     QPointF insertPoint = desdata3.at(i) + gradF*precis;
+<<<<<<< HEAD
                     ++i;//  这里i++以后会不会对下次循环的Richardson外推公式中的参数有影响
                         //  因为我们插入了一个新值
                     desdata3.insert(i,insertPoint);
+=======
+                    desdata3.insert(i+1,insertPoint);
+>>>>>>> 727c5dc023779986a850d2d57f32463e78832fd4
                 }
             }
 
@@ -328,7 +336,11 @@ private:
         }
     }
     void drawLineChart3(QPainter *painter) {
+<<<<<<< HEAD
         if (desdata3.isEmpty()) return;
+=======
+        if (desdata2.isEmpty()) return;
+>>>>>>> 727c5dc023779986a850d2d57f32463e78832fd4
 
         QPen pen(Qt::black);
         pen.setWidth(1);
