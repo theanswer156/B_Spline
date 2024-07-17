@@ -2,10 +2,9 @@
 #define MYWINDOW_H
 #include <QWidget>
 #include <QPainter>
-#include <QPen>
-#include <QBrush>
+
 #include <QList>
-#include <QRect>
+
 #include <QObject>
 #include <QEvent>
 #include <QDebug>
@@ -16,43 +15,32 @@ class LineChartWidget : public QWidget {
 
 public:
     explicit LineChartWidget(QWidget *parent = nullptr) : QWidget(parent) {
-//        this->resize(400,400);
+
     }
 
     // 设置数据点的方法
     void setdesData() {
-//        dataPoints = data;
-//        我们直接随机生成data  然后处理后得到srcdata
+
+
         srcdata.clear();
-        //!设置精度
-
-
 
         QRandomGenerator randomgen;
         quint32 seed = QRandomGenerator::global()->bounded(0,100);
         randomgen.seed(seed);
         for (int i = 0; i < 100; i+=10) {
-            // 这里应填入你的实际数据点
             qreal y = (static_cast<qreal>(randomgen.bounded(500)));
             qreal x = (static_cast<qreal>(randomgen.bounded(500)));
             min_Y = y>min_Y?min_Y:y;
             max_Y = y>max_Y?y:max_Y;
-            srcdata.append(QPointF(x, y)); // someFunction 应替换为你的数据生成逻辑
+            srcdata.append(QPointF(x, y));
         }
 
-//        QPainter painter(this);
-//         绘制数据点
-//        QBrush brush(Qt::blue);
-//        painter.setBrush(brush);
-//        for (const QPointF &point : srcdata) {
-//            painter.drawEllipse(point, 10, 10);
-//        }
 
         //!     给数据点排序
-//        std::sort(srcdata.begin(),srcdata.end(),[](const QPointF &a,const QPointF &b)
-//        {
-//           return a.x()== b.x()?a.y() < b.y():a.x() < b.x();
-//        });
+        std::sort(srcdata.begin(),srcdata.end(),[](const QPointF &a,const QPointF &b)
+        {
+           return a.x()== b.x()?a.y() < b.y():a.x() < b.x();
+        });
         drawPoint();
 
         desdata1.clear();
@@ -60,8 +48,7 @@ public:
         desdata2.clear();
         getDesdata2();
         getDesdata_Resampling();
-//        diff();
-//        update(); // 通知QWidget重绘   也就是这里就给了信号了？？？
+
         //!updata（）就会通知这个类LineChartWidget要求重绘
         //! 这个时候就会调用paintevent事件处理器函数  而我们在子类中重写了
         //! paintevent函数   所以就会调用重写的paintevent事件处理器函数
@@ -71,7 +58,6 @@ public:
     }
     void drawPoint(){
         QPainter painter(this);
-//         绘制数据点
         QBrush brush(Qt::green);
         painter.setBrush(brush);
         for (const QPointF &point : srcdata) {
@@ -85,7 +71,6 @@ public:
     }
     void getDesdata1(){
 
-//        qreal precis = 1e-2;
 
         for(qreal t = 0;t < 1.0000; t+=precis){
             int size = srcdata.size();
@@ -132,7 +117,7 @@ public:
                 temp1 = temp2;
             }
         }
-//        qreal precis = 5e-2;
+
         for(qreal t = 0;t<1.0000;t+=precis){
             QPointF resultPoint={0,0};
             QVector<qreal> bernstein1(size,1),bernstein2(size,1);
@@ -150,8 +135,8 @@ public:
     void getDesdata_Resampling(){
 
         QPainter painter(this);
-//        QPointF currPoint = desdata1.at(0);
-//        qreal precis = 1e-2;
+        painter.setPen(Qt::red);
+
         qreal reciprocalPrecis = 1/precis;
         int i = 2;
         int count = 1;
@@ -165,15 +150,13 @@ public:
         //!     无法计算准确的数值了   所以前两个和后两个不能按照位置来
         //!     必须在计算后就改变   而不是按照坐标来
         for(qreal t = 0;t<1.0000;t+=precis){
-//            QPointF left1 = desdata3.at(i-2);
-//            QPointF left2 = desdata3.at(i-1);
-//            QPointF right1 = desdata3.at(i+1);
-//            QPointF right2 = desdata3.at(i+2);
+
             /*计算currPoint和nextPoint中间点的导数值f'(x)   如果大于阈值的话要画不同的线*/
             if(i<=desdata1.size()-3){
             QPointF gradF = (-richardson[3]+8*richardson[2]-8*(richardson[1])+(richardson[0]))*reciprocalPrecis/12;
+            painter.drawLine(desdata1[i],(desdata1[i]+gradF));
             QPointF ggradF = (richardson[1]+richardson[2]-2*desdata1[i])*reciprocalPrecis*reciprocalPrecis;
-            qreal curvate = abs(ggradF.x()*gradF.y()-gradF.x()*ggradF.y())/qPow(gradF.x()*gradF.x()+gradF.y()*gradF.y(),1.5);
+            qreal curvate = qPow(qPow(gradF.x()*ggradF.y(),2)+qPow(gradF.y()*ggradF.x(),2),0.5)/qPow(gradF.x()*gradF.x()+gradF.y()*gradF.y(),0.75);
             QPointF insertPoint = desdata1.at(i) + gradF*precis/2 +ggradF*precis*precis/4;
             qreal dis1 = qPow((insertPoint.x()-desdata1.at(i).x()),2)+qPow((insertPoint.y()-desdata1.at(i).y()),2);
             qreal dis2 = qPow((insertPoint.x()-desdata1.at(i+1).x()),2)+qPow((insertPoint.y()-desdata1.at(i+1).y()),2);
@@ -181,32 +164,18 @@ public:
             //!     左右两点范围的新点插入
             if(dis1/dis2<1+ratio && dis1/dis2>1-ratio)
             {
-                if(abs(gradF.x())>gradThreshold.x() || abs(gradF.y())>gradThreshold.y() || curvate<curvate_threshold){
-                //!     依次往右边插值   这里就可以用泰勒公式了  二阶误差就不管了
-                //!     多项式函数是一个性质很好的函数
-                //!     这里的插值容易超过下一个点的坐标  这该怎么办
-                //!     还是说误差不能忽略
-//                QPointF insertPoint = desdata1.at(i) + gradF*precis;
-                //  因为我们插入了一个新值
+                if(abs(gradF.x())>gradThreshold.x() || abs(gradF.y())>gradThreshold.y() || curvate>curvate_threshold){
+                //!     依次往右边插值   这里就可以用泰勒公式了
+
                 qDebug()<<i<<"\t"<<count<<"\t"<<i+count<<"\t"<<desdata3.size();
                 desdata3.insert(i+count,insertPoint);
                 count+=1;
                 }
             }
-            //!     在没有插入之前就要将参与理查森外推的四个点做平移
-            //!     还是不对    还是会有影响  插了一个点会影响后面好几个点
-            //!     所以该怎么解决
             richardson[0] = richardson[1];
             richardson[1] = desdata1.at(i);
             richardson[2] = richardson[3];
             richardson[3] = desdata1.at(i+2);
-
-
-            //!     要计算中间点的位置
-            //!     采用数值积分的方法已经有了3阶的误差了
-            //!     如果再用泰勒展开近似的计算是不是会把误差放大
-            //!     如果我采用精度为O(h^4)的理查森外推中心误差公式，
-            //!     最终得到节点附近是否需要重采样
 
             ++i;
             }
@@ -224,8 +193,7 @@ public:
 protected:
     void wheelEvent(QWheelEvent *event)override{
         double scaleFactor = 1.01;
-//        zoomlevel *= event->angleDelta().y()>0?scaleFactor:1/scaleFactor;
-//        zoomCenter = event->pos();
+
         if(event->angleDelta().y()>0){
             zoomlevel*=scaleFactor;
         }else{
@@ -291,18 +259,16 @@ protected:
         Q_UNUSED(event);
         QPainter painter(this);
         updateChart(&painter);
-//        QWidget::resizeEvent(event);
-//        setdesData();
+
         //!  没有这句话依然会调用paintevent
-        update();
+//        update();
     }
 
 private:
     void updateChart(QPainter *painter){
-//        QSize windowsize = this->size();
+
         qDebug()<<this->size()<<"minmax"<<min_Y<< "\t"<<max_Y;
-//        qreal wid = windowsize.width();
-//        qreal hei = windowsize.height();
+
         min_X = desdata1.at(0).x();
         painter->translate(min_X,0);
         QList<QPointF>::reverse_iterator it = desdata1.rbegin();
@@ -394,7 +360,7 @@ private:
         需要f(x)好像是不可以——好像也行  直接递推插值的方法插出来就好了  但是对于误差估计就不知所措了
         同时  可以画hodograph 以及曲率梳形图以便观测哪些地方是很可能进行了重采样的地方  对于不正常的
         地方 我们这只其画的直线颜色与正常的不同以示区分    */
-    QList<QPointF> srcdata;
+    QList<QPointF> srcdata;//   存储原始数据点
     QList<QPointF> desdata1,desdata2,desdata3; // 存储数据点
     qreal min_Y,max_Y;
     qreal min_X;
@@ -406,9 +372,10 @@ private:
     //!     标记是否在拖拽
     bool isDragging = false;
     qreal ratio = 9e-1;
-    qreal precis = 5e-2;
-    qreal curvate_threshold = 1e-1;
+    qreal precis = 1e-2;
+    qreal curvate_threshold = 1e2;
     int Point_Radius = 3;
 };
 
-#endif // MYWINDOW_H
+#endif
+// MYWINDOW_H
