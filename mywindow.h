@@ -10,13 +10,13 @@
 #include <QEvent>
 #include <QDebug>
 #include <QRandomGenerator>
-#include <cmath>
+#include <QtMath>
 class LineChartWidget : public QWidget {
     Q_OBJECT
 
 public:
     explicit LineChartWidget(QWidget *parent = nullptr) : QWidget(parent) {
-        this->resize(400,400);
+//        this->resize(400,400);
     }
 
     // 设置数据点的方法
@@ -172,6 +172,27 @@ public:
             /*计算currPoint和nextPoint中间点的导数值f'(x)   如果大于阈值的话要画不同的线*/
             if(i<=desdata1.size()-3){
             QPointF gradF = (-richardson[3]+8*richardson[2]-8*(richardson[1])+(richardson[0]))*reciprocalPrecis/12;
+            QPointF ggradF = (richardson[1]+richardson[2]-2*desdata1[i])*reciprocalPrecis*reciprocalPrecis;
+            qreal curvate = abs(ggradF.x()*gradF.y()-gradF.x()*ggradF.y())/qPow(gradF.x()*gradF.x()+gradF.y()*gradF.y(),1.5);
+            QPointF insertPoint = desdata1.at(i) + gradF*precis/2 +ggradF*precis*precis/4;
+            qreal dis1 = qPow((insertPoint.x()-desdata1.at(i).x()),2)+qPow((insertPoint.y()-desdata1.at(i).y()),2);
+            qreal dis2 = qPow((insertPoint.x()-desdata1.at(i+1).x()),2)+qPow((insertPoint.y()-desdata1.at(i+1).y()),2);
+            //!     把距离两点较近的新点给过滤掉  这样同时能够减少出现超出
+            //!     左右两点范围的新点插入
+            if(dis1/dis2<1+ratio && dis1/dis2>1-ratio)
+            {
+                if(abs(gradF.x())>gradThreshold.x() || abs(gradF.y())>gradThreshold.y() || curvate<curvate_threshold){
+                //!     依次往右边插值   这里就可以用泰勒公式了  二阶误差就不管了
+                //!     多项式函数是一个性质很好的函数
+                //!     这里的插值容易超过下一个点的坐标  这该怎么办
+                //!     还是说误差不能忽略
+//                QPointF insertPoint = desdata1.at(i) + gradF*precis;
+                //  因为我们插入了一个新值
+                qDebug()<<i<<"\t"<<count<<"\t"<<i+count<<"\t"<<desdata3.size();
+                desdata3.insert(i+count,insertPoint);
+                count+=1;
+                }
+            }
             //!     在没有插入之前就要将参与理查森外推的四个点做平移
             //!     还是不对    还是会有影响  插了一个点会影响后面好几个点
             //!     所以该怎么解决
@@ -186,18 +207,8 @@ public:
             //!     如果再用泰勒展开近似的计算是不是会把误差放大
             //!     如果我采用精度为O(h^4)的理查森外推中心误差公式，
             //!     最终得到节点附近是否需要重采样
-                if(abs(gradF.x())>gradThreshold.x() || abs(gradF.y())>gradThreshold.y()){
-                //!     依次往右边插值   这里就可以用泰勒公式了  二阶误差就不管了
-                //!     多项式函数是一个性质很好的函数
-                //!     这里的插值容易超过下一个点的坐标  这该怎么办
-                //!     还是说误差不能忽略
-                QPointF insertPoint = desdata1.at(i) + gradF*precis/2;
-                //  因为我们插入了一个新值
-                qDebug()<<i<<"\t"<<count<<"\t"<<i+count<<"\t"<<desdata3.size();
-                desdata3.insert(i+count,insertPoint);
-                count+=1;
-                }
-                ++i;
+
+            ++i;
             }
 
         }
@@ -212,7 +223,7 @@ public:
 
 protected:
     void wheelEvent(QWheelEvent *event)override{
-        double scaleFactor = 1.005;
+        double scaleFactor = 1.01;
 //        zoomlevel *= event->angleDelta().y()>0?scaleFactor:1/scaleFactor;
 //        zoomCenter = event->pos();
         if(event->angleDelta().y()>0){
@@ -292,6 +303,8 @@ private:
         qDebug()<<this->size()<<"minmax"<<min_Y<< "\t"<<max_Y;
 //        qreal wid = windowsize.width();
 //        qreal hei = windowsize.height();
+        min_X = desdata1.at(0).x();
+        painter->translate(min_X,0);
         QList<QPointF>::reverse_iterator it = desdata1.rbegin();
         qreal max_X = (*it).x();
         for(QPointF &point:srcdata)
@@ -308,7 +321,6 @@ private:
             //! 所以必须得把随机生成的数据用srcdata保存起来   并且在resizeevent
             //! 发送update（）以后我们同样的要重新绘制数据点   同时更新新的曲线
             //! 这样我们可以实时的更新min_Y、max_Y  从而达到自适应界面的问题
-
         drawLineChart1(painter);
         drawLineChart2(painter);
         drawLineChart3(painter);
@@ -322,11 +334,17 @@ private:
 //        painter->translate(0,50);
         QList<QPointF>::reverse_iterator it = desdata1.rbegin();
         qreal max_X = (*it).x();
+        painter->setBrush(Qt::blue);
+        for(const QPointF &point:srcdata){
+
+            painter->drawEllipse(point,Point_Radius,Point_Radius);
+        }
+        painter->setBrush(Qt::NoBrush);
         for (int i = 0; i < desdata1.size() - 1; ++i) {
             QPointF start = desdata1[i];
-            start.setX(start.x()*this->size().width()/max_X);
+            start.setX((start.x())*this->size().width()/max_X);
             QPointF end = desdata1[i + 1];
-            end.setX(end.x()*this->size().width()/max_X);
+            end.setX((end.x())*this->size().width()/max_X);
             painter->drawLine(start, end);
             painter->drawEllipse(start,Point_Radius,Point_Radius);
         }
@@ -339,7 +357,7 @@ private:
         QPen pen(Qt::red);
         pen.setWidth(1);
         painter->setPen(pen);
-        painter->translate(0,10);
+        painter->translate(0,20);
         QList<QPointF>::reverse_iterator it = desdata2.rbegin();
         qreal max_X = (*it).x();
         for (int i = 0; i < desdata2.size() - 1; ++i) {
@@ -358,7 +376,7 @@ private:
         QPen pen(Qt::black);
         pen.setWidth(1);
         painter->setPen(pen);
-        painter->translate(0,10);
+        painter->translate(0,20);
         QList<QPointF>::reverse_iterator it = desdata2.rbegin();
         qreal max_X = (*it).x();
         for (int i = 0; i < desdata3.size() - 1; ++i) {
@@ -379,6 +397,7 @@ private:
     QList<QPointF> srcdata;
     QList<QPointF> desdata1,desdata2,desdata3; // 存储数据点
     qreal min_Y,max_Y;
+    qreal min_X;
     QPointF zoomCenter;
     QPointF gradThreshold={2e2,2e2};
     double zoomlevel = 1.0;
@@ -386,8 +405,10 @@ private:
     QPoint lastMousePosition;
     //!     标记是否在拖拽
     bool isDragging = false;
-    qreal precis = 1e-2;
-    int Point_Radius = 2;
+    qreal ratio = 9e-1;
+    qreal precis = 5e-2;
+    qreal curvate_threshold = 1e-1;
+    int Point_Radius = 3;
 };
 
 #endif // MYWINDOW_H
