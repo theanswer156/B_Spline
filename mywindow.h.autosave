@@ -50,13 +50,10 @@ public:
         getDesdata_Resampling();
         desdata_CR.clear();
         getDesdata_CR();
-<<<<<<< HEAD
+
 //        desdata_H.clear();
 //        getDesdata_H();
-=======
-        desdata_H.clear();
-        getDesdata_H();
->>>>>>> bdf25cb364196d85371a1e6a8b6967bf0c39632e
+
 
         //!updata（）就会通知这个类LineChartWidget要求重绘
         //! 这个时候就会调用paintevent事件处理器函数  而我们在子类中重写了
@@ -214,11 +211,9 @@ public:
     void getDesdata_H(){
         desdata_H.clear();
         for(int i = 2;i<srcdata.size()-3;++i){
-<<<<<<< HEAD
+
                 //!     理查森外推计算两个点的导数值   4阶中心差分公式
-=======
-                //!     理查森外推计算两个点的导数值
->>>>>>> bdf25cb364196d85371a1e6a8b6967bf0c39632e
+
                 QPointF R0 = (-srcdata.at(i+2)+8*srcdata.at(i+1)-8*srcdata.at(i-1)+srcdata.at(i-2))/(12*precis);
                 QPointF R1 = (-srcdata.at(i+3)+8*srcdata.at(i+2)-8*srcdata.at(i)+srcdata.at(i-1))/(12*precis);
                 //!     Hermite曲线系数值
@@ -303,11 +298,8 @@ protected:
         drawLineChart3(&painter);
         drawLineChart2(&painter);
         drawLineChart_CR(&painter);
-<<<<<<< HEAD
+
 //        drawLineChart_H(&painter);
-=======
-        drawLineChart_H(&painter);
->>>>>>> bdf25cb364196d85371a1e6a8b6967bf0c39632e
 
         //! 恢复之前的转换矩阵
         painter.setTransform(oldTransform);
