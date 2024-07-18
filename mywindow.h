@@ -27,7 +27,7 @@ public:
         QRandomGenerator randomgen;
         quint32 seed = QRandomGenerator::global()->bounded(0,100);
         randomgen.seed(seed);
-        for (int i = 0; i < 100; i+=10) {
+        for (int i = 0; i < 150; i+=10) {
             qreal y = (static_cast<qreal>(randomgen.bounded(500)));
             qreal x = (static_cast<qreal>(randomgen.bounded(500)));
             min_Y = y>min_Y?min_Y:y;
@@ -48,6 +48,10 @@ public:
         desdata2.clear();
         getDesdata2();
         getDesdata_Resampling();
+        desdata_CR.clear();
+        getDesdata_CR();
+        desdata_H.clear();
+        getDesdata_H();
 
         //!updata（）就会通知这个类LineChartWidget要求重绘
         //! 这个时候就会调用paintevent事件处理器函数  而我们在子类中重写了
@@ -72,13 +76,12 @@ public:
     void getDesdata1(){
 
 
-        for(qreal t = 0;t < 1.0000; t+=precis){
+        for(qreal t = 0;t < 1.0000; t+=2*precis){
             int size = srcdata.size();
             QVector<qreal> coefficient(size, 0);
             coefficient[0] = 1.000;
             qreal u1 = 1.0 - t;
             //!这里就是递归的计算
-            //! 如果我们利用
             for (int j = 1; j <= size - 1; j++) {
                 qreal saved = 0.0;
                 for (int k = 0; k < j; k++){
@@ -100,7 +103,7 @@ public:
    }
     void getDesdata2(){
         //! 牛顿迭代法(Newton)
-        //! 牛顿法得到的是位置而不是时间  所以不好计算Func(x_k),grad_Func(x_k)
+        //! 牛顿法得到的是时间而不是位置  所以不好计算Func(x_k),grad_Func(x_k)
         //! 所以牛顿法不适用于计算贝塞尔曲线
         //!
         //!
@@ -141,27 +144,29 @@ public:
         int i = 2;
         int count = 1;
         QVector<QPointF> richardson(4);
-        richardson[0] = desdata1[0];
-        richardson[1] = desdata1[1];
-        richardson[2] = desdata1[3];
-        richardson[3] = desdata1[4];
         //!     不对  如果我们在i-1位置插了一个新点  那么desdata中的值就变了
         //!     那么后面的值也就会变  这样的话  用理查森外推法中心误差公式就
         //!     无法计算准确的数值了   所以前两个和后两个不能按照位置来
         //!     必须在计算后就改变   而不是按照坐标来
         for(qreal t = 0;t<1.0000;t+=precis){
-
+            richardson[0] = desdata3.at(i-2);
+            richardson[1] = desdata3.at(i-1);
+            richardson[2] = desdata3.at(i+1);
+            richardson[3] = desdata3.at(i+2);
             /*计算currPoint和nextPoint中间点的导数值f'(x)   如果大于阈值的话要画不同的线*/
             if(i<=desdata1.size()-3){
             QPointF gradF = (-richardson[3]+8*richardson[2]-8*(richardson[1])+(richardson[0]))*reciprocalPrecis/12;
             painter.drawLine(desdata1[i],(desdata1[i]+gradF));
             QPointF ggradF = (richardson[1]+richardson[2]-2*desdata1[i])*reciprocalPrecis*reciprocalPrecis;
             qreal curvate = qPow(qPow(gradF.x()*ggradF.y(),2)+qPow(gradF.y()*ggradF.x(),2),0.5)/qPow(gradF.x()*gradF.x()+gradF.y()*gradF.y(),0.75);
-            QPointF insertPoint = desdata1.at(i) + gradF*precis/2 +ggradF*precis*precis/4;
+            QPointF insertPoint = desdata1.at(i) + gradF*precis/2 +ggradF*precis*precis/8;
             qreal dis1 = qPow((insertPoint.x()-desdata1.at(i).x()),2)+qPow((insertPoint.y()-desdata1.at(i).y()),2);
             qreal dis2 = qPow((insertPoint.x()-desdata1.at(i+1).x()),2)+qPow((insertPoint.y()-desdata1.at(i+1).y()),2);
             //!     把距离两点较近的新点给过滤掉  这样同时能够减少出现超出
             //!     左右两点范围的新点插入
+            //!     不把相差较远的点过滤掉会出现超出旁边两点太多  图像出现紊乱
+            //!     不过我们可以利用插入点和旁边两点的向量点乘来度量插入点的偏离程度
+            //!     偏离程度太大的就都过滤掉
             if(dis1/dis2<1+ratio && dis1/dis2>1-ratio)
             {
                 if(abs(gradF.x())>gradThreshold.x() || abs(gradF.y())>gradThreshold.y() || curvate>curvate_threshold){
@@ -172,15 +177,50 @@ public:
                 count+=1;
                 }
             }
-            richardson[0] = richardson[1];
-            richardson[1] = desdata1.at(i);
-            richardson[2] = richardson[3];
-            richardson[3] = desdata1.at(i+2);
-
             ++i;
             }
 
         }
+    }
+    void getDesdata_CR(){
+        //!     一个点的速度与相邻两点形成的向量是平行的
+        desdata_CR.clear();
+        qreal tau = 9e-1;   //!     tau越小曲线越平缓
+        for(int i = 2;i<srcdata.size()-1;i+=1){
+            for(qreal t = 0;t<1.0000;t+=precis){
+                QPointF C_0 = srcdata.at(i-1);
+                QPointF C_1 = -tau*srcdata.at(i-2)+tau*srcdata.at(i);
+                QPointF C_2 = 2*tau*srcdata.at(i-2)+(tau-3)*srcdata.at(i-1)+(3-2*tau)*srcdata.at(i)-tau*srcdata.at(i+1);
+                QPointF C_3 = -tau*srcdata.at(i-2)+(2-tau)*srcdata.at(i-1)+(tau-2)*srcdata.at(i)+tau*srcdata.at(i+1);
+                QPointF resultPoint = C_0+C_1*t+C_2*t*t+C_3*t*t*t;
+//                qreal B0 = 0.5*qPow((2-t),3);
+//                qreal B1 = 0.75*qPow(t,2)-qPow(t,3);
+//                qreal B2 = 0.75*(t-1)*qPow(t,2);
+//                qreal B3 = 0.5*qPow(t,3);
+//                QPointF resultPoint = B0*srcdata.at(i-1)+B1*srcdata.at(i-2)+B2*srcdata.at(i)+B3*srcdata.at(i+1);
+                //!     这样每个控制点会画加入两次
+                desdata_CR.append(resultPoint);
+            }
+        }
+    }
+    void getDesdata_H(){
+        desdata_H.clear();
+        for(int i = 2;i<srcdata.size()-3;++i){
+                //!     理查森外推计算两个点的导数值
+                QPointF R0 = (-srcdata.at(i+2)+8*srcdata.at(i+1)-8*srcdata.at(i-1)+srcdata.at(i-2))/(12*precis);
+                QPointF R1 = (-srcdata.at(i+3)+8*srcdata.at(i+2)-8*srcdata.at(i)+srcdata.at(i-1))/(12*precis);
+                //!     Hermite曲线系数值
+                //!     Hermite插值算出来的曲线太抽象了
+            for(qreal t = 0;t<1.0000;t+=precis){
+                qreal F0 = t*t*(2*t-3)+1;
+                qreal F1 = t*t*(3-2*t);
+                qreal F2 = t*qPow((t-1),2);
+                qreal F3 = t*t*(t-1);
+                QPointF resultPoint = srcdata.at(i)*F0+srcdata.at(i+1)*F1+R0*F2+R1*F3;
+                desdata_H.append(resultPoint);
+            }
+        }
+        qDebug()<<"Hermite data get";
     }
     void diff(){
         int size = desdata1.size();
@@ -250,7 +290,8 @@ protected:
         drawLineChart1(&painter);
         drawLineChart3(&painter);
         drawLineChart2(&painter);
-
+        drawLineChart_CR(&painter);
+        drawLineChart_H(&painter);
 
         //! 恢复之前的转换矩阵
         painter.setTransform(oldTransform);
@@ -270,7 +311,7 @@ private:
         qDebug()<<this->size()<<"minmax"<<min_Y<< "\t"<<max_Y;
 
         min_X = desdata1.at(0).x();
-        painter->translate(min_X,0);
+//        painter->translate(min_X,0);
         QList<QPointF>::reverse_iterator it = desdata1.rbegin();
         qreal max_X = (*it).x();
         for(QPointF &point:srcdata)
@@ -281,15 +322,19 @@ private:
             point.setX(point.x()*this->size().width()/max_X);
         for(QPointF &point:desdata3)
             point.setX(point.x()*this->size().width()/max_X);
+        for(QPointF &point:desdata_CR)
+            point.setX(point.x()*this->size().width()/max_X);
+        for(QPointF &point:desdata_H)
+            point.setX(point.x()*this->size().width()/max_X);
 //            point.setY((point.y()+min_Y)*this->size().width()/(max_Y-min_Y));
             //!因为这里我们没有实时更新srcdata的min_Y、max_Y
             //! 所以这里的min_Y、max_Y没有实时更新  因此放缩一下就会瞬间爆炸
             //! 所以必须得把随机生成的数据用srcdata保存起来   并且在resizeevent
             //! 发送update（）以后我们同样的要重新绘制数据点   同时更新新的曲线
             //! 这样我们可以实时的更新min_Y、max_Y  从而达到自适应界面的问题
-        drawLineChart1(painter);
-        drawLineChart2(painter);
-        drawLineChart3(painter);
+//        drawLineChart1(painter);
+//        drawLineChart2(painter);
+//        drawLineChart3(painter);
     }
     void drawLineChart1(QPainter *painter) {
         if (desdata1.isEmpty()) return;
@@ -355,13 +400,47 @@ private:
             painter->drawEllipse(start,Point_Radius,Point_Radius);
         }
     }
-    /*  我们可以用currPoint表示起始点，用nextPoint表示终点  它们就可以表示是在第k个重采样的插值区间
-        我们可以利用desdata得到nextPoint，也可以在重采样之前计算nextPoint然后在重采样 但是求二阶导
-        需要f(x)好像是不可以——好像也行  直接递推插值的方法插出来就好了  但是对于误差估计就不知所措了
-        同时  可以画hodograph 以及曲率梳形图以便观测哪些地方是很可能进行了重采样的地方  对于不正常的
-        地方 我们这只其画的直线颜色与正常的不同以示区分    */
+    void drawLineChart_CR(QPainter *painter) {
+        if (desdata_CR.isEmpty()) return;
+
+        QPen pen(Qt::black);
+        pen.setWidth(1);
+        painter->setPen(pen);
+        painter->translate(0,20);
+        QList<QPointF>::reverse_iterator it = desdata_CR.rbegin();
+        qreal max_X = (*it).x();
+        for (int i = 0; i < desdata_CR.size() - 1; ++i) {
+            QPointF start = desdata_CR[i];
+            start.setX(start.x()*this->size().width()/max_X);
+            QPointF end = desdata_CR[i + 1];
+            end.setX(end.x()*this->size().width()/max_X);
+            painter->drawLine(start, end);
+            painter->drawEllipse(start,Point_Radius,Point_Radius);
+        }
+        qDebug()<<"Line CR drawed";
+    }
+    void drawLineChart_H(QPainter *painter) {
+        if (desdata_CR.isEmpty()) return;
+
+        QPen pen(Qt::red);
+        pen.setWidth(1);
+        painter->setPen(pen);
+        painter->translate(0,20);
+        QList<QPointF>::reverse_iterator it = desdata_CR.rbegin();
+        qreal max_X = (*it).x();
+        for (int i = 0; i < desdata_H.size() - 1; ++i) {
+            QPointF start = desdata_H[i];
+            start.setX(start.x()*this->size().width()/max_X);
+            QPointF end = desdata_H[i + 1];
+            end.setX(end.x()*this->size().width()/max_X);
+            painter->drawLine(start, end);
+            painter->drawEllipse(start,Point_Radius,Point_Radius);
+        }
+        qDebug()<<"Line Hermite drawed";
+    }
+
     QList<QPointF> srcdata;//   存储原始数据点
-    QList<QPointF> desdata1,desdata2,desdata3; // 存储数据点
+    QList<QPointF> desdata1,desdata2,desdata3,desdata_CR,desdata_H; // 存储数据点
     qreal min_Y,max_Y;
     qreal min_X;
     QPointF zoomCenter;
@@ -372,7 +451,7 @@ private:
     //!     标记是否在拖拽
     bool isDragging = false;
     qreal ratio = 9e-1;
-    qreal precis = 1e-2;
+    qreal precis = 2e-2;
     qreal curvate_threshold = 1e2;
     int Point_Radius = 3;
 };
